@@ -1,4 +1,5 @@
 import os
+from httpcore import __name
 import yt_dlp
 from aiohttp import web
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -156,5 +157,5 @@ def main():
     print("Bot started...")
     app.run_polling()
 
-if name == '__main__':
+if __name__ == '__main__':
     main()
