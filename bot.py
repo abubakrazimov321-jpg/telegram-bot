@@ -1,5 +1,6 @@
 import os
 import yt_dlp
+from aiohttp import web
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
@@ -133,3 +134,27 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
 print("Bot started...")
 app.run_polling()
+import os
+
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
+async def start_web_server():
+    app_web = web.Application()
+    app_web.router.add_get('/', handle)
+    runner = web.AppRunner(app_web)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+
+def main():
+    import asyncio
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(start_web_server())
+    
+    print("Bot started...")
+    app.run_polling()
+
+if name == '__main__':
+    main()
