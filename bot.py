@@ -35,10 +35,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     TOKEN = os.environ.get("TOKEN")
     app = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
     print("Bot started...")
     app.run_polling()
+
+if __name__ == "__main__":
+    main()
