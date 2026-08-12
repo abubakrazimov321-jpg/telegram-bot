@@ -33,7 +33,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pass
 
 def main():
-    TOKEN = "8795068941:AAFtEH5Uo2uCigSMA5gV0cZO5t4o0snJ5c"
+    TOKEN = os.environ.get("TOKEN")
     app = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -42,6 +42,3 @@ def main():
 
     print("Bot started...")
     app.run_polling()
-
-if __name__ == "__main__":
-    main()
