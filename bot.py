@@ -20,14 +20,12 @@ CHANNEL_USERNAME = "@trenddmarket_tj"
 async def check_subscription(user_id, context):
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        # Агар статус инҳо бошад, яъне обуна аст
         if member.status in ["member", "administrator", "creator"]:
             return True
         else:
             return False
     except Exception as e:
         print(f"Xatosi sravneniya: {e}")
-        # Агар хато шавад (масалан обуна набошад ва Telegram хато диҳад), False ҳисоб мекунем
         return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -46,7 +44,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text("Салом! Ссылкаи лозимаро партоед:")
+    await update.message.reply_text("Салом! Ссылкаи видеои лозимаро аз Instagram, Tiktok, YouTube партоед:")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -56,7 +54,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_subscribed = await check_subscription(user_id, context)
     
     if is_subscribed:
-        await query.message.edit_text("Ташаккур! Акнун ссылкаи видеоро партоед:")
+        await query.message.edit_text("Ташаккур! Акнун ссылкаи лозимаро партоед:")
     else:
         await query.message.reply_text("Шумо ҳанӯз ба канал обуна нашудаед. Лутфан аввал обуна шавед ва тугмаи санҷиши обунаро пахш кунед!")
 
@@ -78,7 +76,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     url = update.message.text
     if not url.startswith("http"):
-        await update.message.reply_text("Лутфан ссылкаи дуруст партоед.")
+        await update.message.reply_text("Лутфан ссылкаи дуруст партооед.")
         return
 
     msg = await update.message.reply_text("Видео скачать шуда истодааст лутфан мунтазир шавед...")
@@ -86,6 +84,9 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ydl_opts = {
         'format': 'best',
         'outtmpl': 'video.mp4',
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
     }
 
     try:
@@ -96,7 +97,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.delete()
         os.remove('video.mp4')
     except Exception as e:
-        await msg.edit_text(f"Хатогӣ рух дод лутфан дубора кушиш кунед: {e}")
+        await msg.edit_text(f"Хатогӣ рух дод: {e}")
 
 def main():
     t = threading.Thread(target=run_web)
@@ -112,6 +113,5 @@ def main():
 
     print("Bot started...")
     application.run_polling()
-
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()
