@@ -1,11 +1,11 @@
 import os
 from flask import Flask
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import yt_dlp
 import threading
 
-# Flask сервер барои он ки Render розӣ шавад
+# Flask сервер барои дар кор мондани бот дар Render
 web_app = Flask(__name__)
 
 @web_app.route('/')
@@ -16,17 +16,76 @@ def run_web():
     port = int(os.environ.get("PORT", 10000))
     web_app.run(host="0.0.0.0", port=port)
 
-# Функцияҳои боти Telegram
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Салом! Ссылкаи видеоро партоед:")
+# Номи канали шумо барои санҷиши обуна
+CHANNEL_USERNAME = "@trenddmarket_tj"
 
-async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text
-    if not url.startswith("http"):
-        await update.message.reply_text("Лутфан ссылкаи дуруст партовед.")
+# Функция барои санҷидани обунаи корбар
+async def check_subscription(user_id, context):
+    try:
+        member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        if member.status in ["member", "administrator", "creator"]:
+            return True
+    except Exception:
+        pass
+    return False
+
+# Фармони /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    # Санҷиши обуна
+    is_subscribed = await check_subscription(user_id, context)
+    
+    if not is_subscribed:
+        keyboard = [
+            [InlineKeyboardButton("📢 Обуна шудан ба канал", url=f"https://t.me/trenddmarket_tj")],
+            [InlineKeyboardButton("✅ Санҷиши обуна", callback_data="check_sub")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"Лутфан аввал ба канали мо {CHANNEL_USERNAME} обуна шавед, то аз бот истифода баред!",
+            reply_markup=reply_markup
+        )
         return
 
-    msg = await update.message.reply_text("Видео боргирӣ шуда истодааст...")
+    await update.message.reply_text("Салом! Ҳоло ссылкаи видеоро аз Instagram ё YouTube партоед:")
+
+# Кор бо тугмаи санҷиши обуна
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    is_subscribed = await check_subscription(user_id, context)
+    
+    if is_subscribed:
+        await query.message.edit_text("Ташаккур! Акнун ссылкаи видеоро партоед:")
+    else:
+        await query.message.reply_text("Шумо ҳанӯз ба канал обуна нашудаед. Лутфан аввал обуна шавед!")
+
+# Боргирии видео
+async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    # Бори дигар санҷидани обуна ҳангоми фиристодани ссылка
+    is_subscribed = await check_subscription(user_id, context)
+    if not is_subscribed:
+        keyboard = [
+            [InlineKeyboardButton("📢 Обуна шудан ба канал", url=f"https://t.me/trenddmarket_tj")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"Барои истифодаи бот лутфан аввал ба канали мо {CHANNEL_USERNAME} обуна шавед!",
+            reply_markup=reply_markup
+        )
+        return
+
+    url = update.message.text
+    if not url.startswith("http"):
+        await update.message.reply_text("Лутфан ссылкаи дуруст партоед.")
+        return
+
+    msg = await update.message.reply_text("Видео скачать шуда истодааст лутфан мунтазир шавед...")
 
     ydl_opts = {
         'format': 'best',
@@ -44,16 +103,16 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.edit_text(f"Хатогӣ рух дод: {e}")
 
 def main():
-    # Сервери веб дар потоки алоҳида (background thread)
+    # Кушодани Flask дар поток (thread) алоҳида
     t = threading.Thread(target=run_web)
     t.daemon = True
     t.start()
 
-    # Идоракунии боти Telegram
     TOKEN = os.environ.get("TOKEN")
     application = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).build()
     
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(telegram.ext.CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
     print("Bot started...")
