@@ -1,23 +1,22 @@
 import os
-import asyncio
-from aiohttp import web
-import yt_dlp
+from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import yt_dlp
+import threading
 
-# Сервери хурд барои он ки Render розӣ шавад ва хато накунад
-async def handle(request):
-    return web.Response(text="Bot is running!")
+# Flask сервер барои он ки Render розӣ шавад
+web_app = Flask(__name__)
 
-async def web_server():
-    app = web.Application()
-    app.router.add_get("/", handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
+@web_app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_web():
     port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
+    web_app.run(host="0.0.0.0", port=port)
 
+# Функцияҳои боти Telegram
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Салом! Ссылкаи видеоро партоед:")
 
@@ -44,20 +43,21 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await msg.edit_text(f"Хатогӣ рух дод: {e}")
 
-async def main():
-    # Веб-серверро ба кор медарорем, то Render хомӯш накунад
-    asyncio.create_task(web_server())
+def main():
+    # Сервери веб дар потоки алоҳида (background thread)
+    t = threading.Thread(target=run_web)
+    t.daemon = True
+    t.start()
 
+    # Идоракунии боти Telegram
     TOKEN = os.environ.get("TOKEN")
-    app = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).build()
+    application = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).build()
     
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
     print("Bot started...")
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
+    application.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
