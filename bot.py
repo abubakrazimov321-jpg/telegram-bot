@@ -11,10 +11,6 @@ web_app = Flask(__name__)
 def home():
     return "Bot is running!"
 
-def run_web():
-    port = int(os.environ.get("PORT", 10000))
-    web_app.run(host="0.0.0.0", port=port)
-
 CHANNEL_USERNAME = "@trenddmarket_tj"
 
 async def check_subscription(user_id, context):
@@ -44,7 +40,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text("Салом! Ссылкаи видеои лозимаро аз Instagram, Tiktok, YouTube партоед:")
+    await update.message.reply_text("Салом!сылкаи видеои лозимаро аз Instagram, Tiktok, YouTube партоед:")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -54,7 +50,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_subscribed = await check_subscription(user_id, context)
     
     if is_subscribed:
-        await query.message.edit_text("Ташаккур! Акнун ссылкаи лозимаро партоед:")
+        await query.message.edit_text("Ташаккур! Акнун ссылкаи видеоро партоед:")
     else:
         await query.message.reply_text("Шумо ҳанӯз ба канал обуна нашудаед. Лутфан аввал обуна шавед ва тугмаи санҷиши обунаро пахш кунед!")
 
@@ -76,7 +72,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     url = update.message.text
     if not url.startswith("http"):
-        await update.message.reply_text("Лутфан ссылкаи дуруст партооед.")
+        await update.message.reply_text("Лутфан ссылкаи дурустро партоед.")
         return
 
     msg = await update.message.reply_text("Видео скачать шуда истодааст лутфан мунтазир шавед...")
@@ -99,11 +95,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await msg.edit_text(f"Хатогӣ рух дод: {e}")
 
-def main():
-    t = threading.Thread(target=run_web)
-    t.daemon = True
-    t.start()
-
+def run_bot():
     TOKEN = os.environ.get("TOKEN")
     application = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).build()
     
@@ -113,5 +105,13 @@ def main():
 
     print("Bot started...")
     application.run_polling()
-    if __name__ == "__main__":
-        main() 
+
+if __name__ == "__main__":
+    # Ботро дар поток (thread) мемонем, то ки Flask ва бот якҷоя кор кунанд
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.daemon = True
+    bot_thread.start()
+
+    # Flask дар порти Render кор мекунад
+    port = int(os.environ.get("PORT", 10000))
+    web_app.run(host="0.0.0.0", port=port)
