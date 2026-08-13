@@ -20,11 +20,15 @@ CHANNEL_USERNAME = "@trenddmarket_tj"
 async def check_subscription(user_id, context):
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        # Агар статус инҳо бошад, яъне обуна аст
         if member.status in ["member", "administrator", "creator"]:
             return True
-    except Exception:
-        pass
-    return False
+        else:
+            return False
+    except Exception as e:
+        print(f"Xatosi sravneniya: {e}")
+        # Агар хато шавад (масалан обуна набошад ва Telegram хато диҳад), False ҳисоб мекунем
+        return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -54,7 +58,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_subscribed:
         await query.message.edit_text("Ташаккур! Акнун ссылкаи видеоро партоед:")
     else:
-        await query.message.reply_text("Шумо ҳанӯз ба канал обуна нашудаед. Лутфан аввал обуна шавед!")
+        await query.message.reply_text("Шумо ҳанӯз ба канал обуна нашудаед. Лутфан аввал обуна шавед ва тугмаи санҷиши обунаро пахш кунед!")
 
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -63,6 +67,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_subscribed:
         keyboard = [
             [InlineKeyboardButton("📢 Обуна шудан ба канал", url=f"https://t.me/trenddmarket_tj")],
+            [InlineKeyboardButton("✅ Санҷиши обуна", callback_data="check_sub")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
@@ -91,7 +96,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.delete()
         os.remove('video.mp4')
     except Exception as e:
-        await msg.edit_text(f"Хатогӣ рух дод: {e}")
+        await msg.edit_text(f"Хатогӣ рух дод лутфан дубора кушиш кунед: {e}")
 
 def main():
     t = threading.Thread(target=run_web)
