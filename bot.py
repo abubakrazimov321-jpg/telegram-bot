@@ -1,15 +1,20 @@
 import os
+import threading
 from flask import Flask
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import yt_dlp
-import threading
 
+# Мини-сервер барои Flask, то ки Render сервери фаъол бубинад ва ботро хомӯш накунад
 web_app = Flask(__name__)
 
 @web_app.route('/')
 def home():
     return "Bot is running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    web_app.run(host="0.0.0.0", port=port)
 
 CHANNEL_USERNAME = "@trenddmarket_tj"
 
@@ -40,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text("Салом!сылкаи видеои лозимаро аз Instagram, Tiktok, YouTube партоед:")
+    await update.message.reply_text("Салом! сылкаи видеои лозимаро аз Instagram, Tiktok, YouTube партоед:")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -95,23 +100,20 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await msg.edit_text(f"Хатогӣ рух дод: {e}")
 
-def run_bot():
+if __name__ == "__main__":
+    # Flask-ро дар background (потоки дуюм) ба кор медарорем, то ки Render хомӯш накунад
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    # Бот худаш дар потоки асосӣ (main thread) кор мекунад, то хатогӣ набарояд
     TOKEN = os.environ.get("TOKEN")
-    application = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).build()
+    application = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).
+    build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
-    print("Bot started...")
+    print("Bot started with background web server...")
     application.run_polling()
-
-if __name__ == "__main__":
-    # Ботро дар поток (thread) мемонем, то ки Flask ва бот якҷоя кор кунанд
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-
-    # Flask дар порти Render кор мекунад
-    port = int(os.environ.get("PORT", 10000))
-    web_app.run(host="0.0.0.0", port=port)
