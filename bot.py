@@ -1,11 +1,11 @@
 import os
 import threading
 from flask import Flask
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import yt_dlp
 
-# Мини-сервер барои Flask, то ки Render сервери фаъол бубинад ва ботро хомӯш накунад
+# Мини-сервер барои нигоҳ доштани активгии бот дар Render
 web_app = Flask(__name__)
 
 @web_app.route('/')
@@ -21,58 +21,33 @@ CHANNEL_USERNAME = "@trenddmarket_tj"
 async def check_subscription(user_id, context):
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        if member.status in ["member", "administrator", "creator"]:
-            return True
-        else:
-            return False
-    except Exception as e:
-        print(f"Xatosi sravneniya: {e}")
+        return member.status in ["member", "administrator", "creator"]
+    except:
         return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    is_subscribed = await check_subscription(user_id, context)
-    
-    if not is_subscribed:
+    if not await check_subscription(user_id, context):
         keyboard = [
             [InlineKeyboardButton("📢 Обуна шудан ба канал", url=f"https://t.me/trenddmarket_tj")],
             [InlineKeyboardButton("✅ Санҷиши обуна", callback_data="check_sub")]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            f"Лутфан аввал ба канали мо {CHANNEL_USERNAME} обуна шавед, то аз бот истифода баред!",
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text(f"Лутфан аввал ба канали мо {CHANNEL_USERNAME} обуна шавед!", reply_markup=InlineKeyboardMarkup(keyboard))
         return
-
     await update.message.reply_text("Салом! сылкаи видеои лозимаро аз Instagram, Tiktok, YouTube партоед:")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
-    user_id = query.from_user.id
-    is_subscribed = await check_subscription(user_id, context)
-    
-    if is_subscribed:
+    if await check_subscription(query.from_user.id, context):
         await query.message.edit_text("Ташаккур! Акнун ссылкаи видеоро партоед:")
     else:
-        await query.message.reply_text("Шумо ҳанӯз ба канал обуна нашудаед. Лутфан аввал обуна шавед ва тугмаи санҷиши обунаро пахш кунед!")
+        await query.message.reply_text("Шумо ҳанӯз обуна нашудаед!")
 
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    is_subscribed = await check_subscription(user_id, context)
-    
-    if not is_subscribed:
-        keyboard = [
-            [InlineKeyboardButton("📢 Обуна шудан ба канал", url=f"https://t.me/trenddmarket_tj")],
-            [InlineKeyboardButton("✅ Санҷиши обуна", callback_data="check_sub")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            f"Барои истифодаи бот лутфан аввал ба канали мо {CHANNEL_USERNAME} обуна шавед!",
-            reply_markup=reply_markup
-        )
+    if not await check_subscription(user_id, context):
+        await update.message.reply_text(f"Лутфан ба канал обуна шавед: {CHANNEL_USERNAME}")
         return
 
     url = update.message.text
@@ -81,16 +56,8 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     msg = await update.message.reply_text("Видео скачать шуда истодааст лутфан мунтазир шавед...")
-
-    ydl_opts = {
-        'format': 'best',
-        'outtmpl': 'video.mp4',
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        }
-    }
-
     try:
+        ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4'}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
         
@@ -98,22 +65,19 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.delete()
         os.remove('video.mp4')
     except Exception as e:
-        await msg.edit_text(f"Хатогӣ рух дод: {e}")
+        await msg.edit_text(f"Хатогӣ: {e}")
 
 if __name__ == "__main__":
-    # Flask-ро дар background (потоки дуюм) ба кор медарорем, то ки Render хомӯш накунад
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
 
-    # Бот худаш дар потоки асосӣ (main thread) кор мекунад, то хатогӣ набарояд
     TOKEN = os.environ.get("TOKEN")
-    application = Application.builder().token(TOKEN).read_timeout(60).write_timeout(60).
-    build()
+    app = Application.builder().token(TOKEN).build()
     
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
-    print("Bot started with background web server...")
-    application.run_polling()
+    print("Bot is running...")
+    app.run_polling()
