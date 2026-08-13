@@ -113,7 +113,7 @@ def main():
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(telegram.ext.CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    application.add_handler(CallbackQueryHandler(button_handler))
 
     print("Bot started...")
     application.run_polling()
