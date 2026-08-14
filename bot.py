@@ -1,139 +1,83 @@
 import os
-from httpcore import __name
-import yt_dlp
-from aiohttp import web
+import threading
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+import yt_dlp
 
-TOKEN = "8795068941:AAFtEHI5Uo2uCig5MA5gV0cZOSt4o0snJ5c"
+# Мини-сервер барои нигоҳ доштани активгии бот дар Render
+web_app = Flask(__name__)
+
+@web_app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    web_app.run(host="0.0.0.0", port=port)
 
 CHANNEL_USERNAME = "@trenddmarket_tj"
-CHANNEL_URL = "https://t.me/trenddmarket_tj"
-
-video_captions = {}
 
 async def check_subscription(user_id, context):
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        if member.status in ['member', 'administrator', 'creator']:
-            return True
-    except Exception:
-        pass
-    return False
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    
     if not await check_subscription(user_id, context):
         keyboard = [
-            [InlineKeyboardButton("📢 Обуна шудан ба канал", url=CHANNEL_URL)],
-            [InlineKeyboardButton("✅ Санҷидани обуна", callback_data="check_sub")]
+            [InlineKeyboardButton("📢 Обуна шудан ба канал", url=f"https://t.me/trenddmarket_tj")],
+            [InlineKeyboardButton("✅ Санҷиши обуна", callback_data="check_sub")]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "❌ Барои истифодаи бот, лутфан аввал ба канали мо обуна шавед!",
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text(f"Лутфан аввал ба канали мо {CHANNEL_USERNAME} обуна шавед!", reply_markup=InlineKeyboardMarkup(keyboard))
         return
+    await update.message.reply_text("Салом! сылкаи видеои лозимаро аз Instagram, Tiktok, YouTube партоед:")
 
-    await update.message.reply_text(
-        "✅ Обунаи шумо тасдиқ шуд!\n\n"
-        "Лутфан линки даркории худро аз Instagram, YouTube ё TikTok фиристед."
-    )
-
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    user_id = query.from_user.id
-
-    if query.data == "check_sub":
-        if await check_subscription(user_id, context):
-            await query.message.delete()
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="✅ Обунаи шумо тасдиқ шуд!\n\n"
-                     "Лутфан линки даркории худро аз Instagram, YouTube ё TikTok фиристед."
-            )
-        else:
-            await query.answer("❌ Шумо ҳанӯз ба канал обуна нашудаед!", show_alert=True)
-            
-    elif query.data == "get_caption":
-        caption = video_captions.get(user_id, "Описания ёфт нашуд ё холӣ аст.")
-        await query.message.reply_text(f"📝 **Тексти пост / Описания:**\n\n{caption}")
+    if await check_subscription(query.from_user.id, context):
+        await query.message.edit_text("Ташаккур! Акнун ссылкаи видеоро партоед:")
+    else:
+        await query.message.reply_text("Шумо ҳанӯз обуна нашудаед!")
 
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     if not await check_subscription(user_id, context):
-        keyboard = [
-            [InlineKeyboardButton("📢 Обуна шудан ба канал", url=CHANNEL_URL)],
-            [InlineKeyboardButton("✅ Санҷидани обуна", callback_data="check_sub")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            " Барои зеркашии видео, аввал бояд ба канали мо обуна шавед!",
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text(f"Лутфан ба канал обуна шавед: {CHANNEL_USERNAME}")
         return
 
-    url = update.message.text.strip()
-    status_msg = await update.message.reply_text("⏳ Видео скачат шуда истодааст интизор шавед...")
+    url = update.message.text
+    if not url.startswith("http"):
+        await update.message.reply_text("Лутфан ссылкаи дурустро партоед.")
+        return
 
-    filename = None
+    msg = await update.message.reply_text("Видео скачать шуда истодааст лутфан мунтазир шавед...")
     try:
-        ydl_opts = {
-            "outtmpl": "downloaded_video.%(ext)s",
-            "format": "best[filesize<50M]/b",  # Файлҳои сабук ва зуд зеркашишавандаро меинтихоб кунад
-            "quiet": True,
-            "no_warnings": True,
-            "skip_download": False,
-        }
-
+        ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4'}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            description = info.get("description", "")
-
-        if not os.path.exists(filename):
-            for file in os.listdir("."):
-                if file.startswith("downloaded_video."):
-                    filename = file
-                    break
-
-        video_captions[user_id] = description if description else "Описания мавҷуд нест."
-
-        with open(filename, "rb") as video:
-            await update.message.reply_video(video=video, read_timeout=300, write_timeout=300)
-
-        keyboard = [
-            [InlineKeyboardButton("Получить текст поста", callback_data="get_caption")]
-            ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+            ydl.download([url])
         
-        await update.message.reply_text(
-            "Нажмите, чтобы получить текст поста 👇🏻",
-            reply_markup=reply_markup
-        )
-
-        await status_msg.delete()
-
+        await update.message.reply_video(video=open('video.mp4', 'rb'))
+        await msg.delete()
+        os.remove('video.mp4')
     except Exception as e:
-        await status_msg.edit_text("❌ Хато шуд: Видео скачат нашуд.")
+        await msg.edit_text(f"Хатогӣ: {e}")
 
-    finally:
-        if filename and os.path.exists(filename):
-            try:
-                os.remove(filename)
-            except:
-                pass
-
-app = Application.builder().read_timeout(60).write_timeout(60).token(TOKEN).build()
-
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button_callback))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
-
-print("Bot started...")
 if __name__ == "__main__":
-    print("Bot started...")
-    app.run_polling() 
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    TOKEN = os.environ.get("TOKEN")
+    app = Application.builder().token(TOKEN).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+
+    print("Bot is running...")
+    app.run_polling()
