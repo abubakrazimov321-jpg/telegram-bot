@@ -80,8 +80,4 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
     print("Bot is running...")
-<<<<<<< HEAD
     app.run_polling()
-=======
-    app.run_polling()
->>>>>>> 13fce2c0f519a49912d17e5639aaaa83bd4f6388
