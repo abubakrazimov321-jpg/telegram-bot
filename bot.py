@@ -112,7 +112,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     asyncio.create_task(web_server())
 
-    TOKEN = "8795068941:AAHOByRd5heZm7jyNQekDRBpUjfAM-6_Wqk"
+    TOKEN = "8795068941:AAEBH5QJAs_lcrbKOqbqm5MNUr6f9CKV5vk"
     app = Application.builder().token(TOKEN).read_timeout(120).write_timeout(120).connect_timeout(120).pool_timeout(120).build()
         
     app.add_handler(CommandHandler("start", start))
