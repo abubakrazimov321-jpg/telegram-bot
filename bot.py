@@ -32,14 +32,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in users_set:
         users_set.add(user_id)
-        # ID-ро дар файл сабт мекунем, то тоза нашавад
         with open("users.txt", "a") as f:
             f.write(user_id + "\n")
             
     print(f"Корбар бо ID-и {user_id} фармони /start-ро пахш кард!")
-    await update.message.reply_text("Салом! Ссылкаи видеоро партоед:")
+    await update.message.reply_text("Салом! Ссылкаи видеои лозимаро партоед:")
 
-async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     if not url.startswith("http"):
         await update.message.reply_text("Лутфан ссылкаи дуруст партоед.")
@@ -48,42 +47,91 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     last_urls[user_id] = url
 
-    msg = await update.message.reply_text("Видео скачать шуда истодааст лутфан мунтазир шавед...")
+    # Тугмаҳо барои интихоб
+    keyboard = [
+        [InlineKeyboardButton("📥 Скачать видео", callback_data="dl_video")],
+        [InlineKeyboardButton("🎵 Скачать музыку", callback_data="dl_audio")],
+        [InlineKeyboardButton("📄 Получить текст", callback_data="get_text")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-    ydl_opts = {
-        'format': 'best',
-        'outtmpl': 'video.mp4',
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        
-        keyboard = [[InlineKeyboardButton("📄 Получить текст поста", callback_data="get_text")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await update.message.reply_video(
-            video=open('video.mp4', 'rb'),
-            reply_markup=reply_markup
-        )
-        await msg.delete()
-        os.remove('video.mp4')
-    except Exception as e:
-        await msg.edit_text(f"Хатогӣ рух дод: {e}")
+    await update.message.reply_text(
+        "Ссылка қабул шуд! Чӣ кор кардан лозим аст? Тугмаи лозимиро пахш кунед:",
+        reply_markup=reply_markup
+    )
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    if query.data == "get_text":
-        user_id = query.from_user.id
-        url = last_urls.get(user_id)
+    user_id = query.from_user.id
+    url = last_urls.get(user_id)
 
-        if not url:
-            await query.message.reply_text("Маълумоти видео ёфт нашуд. Бори дигар ссылкаро партоед.")
-            return
+    if not url:
+        await query.message.reply_text("Маълумоти ссылка ёфт нашуд. Бори дигар ссылкаро партоед.")
+        return
 
-        await query.message.reply_text("Лутфан мунтазир шавед, матни пост ва хештегҳо гирифта истодаанд...")
+    # 1. Зеркашии видео
+    if query.data == "dl_video":
+        msg = await query.message.reply_text("Видео скачать шуда истодааст, лутфан мунтазир шавед...")
+        
+        ydl_opts = {
+            'format': 'mp4[height<=720]/best[height<=720]/best',
+            'outtmpl': 'video.mp4',
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                duration = info.get('duration', None)
+                width = info.get('width', None)
+                height = info.get('height', None)
+            
+            with open('video.mp4', 'rb') as video_file:
+                await query.message.reply_video(
+                    video=video_file,
+                    duration=duration,
+                    width=width,
+                    height=height
+                )
+            await msg.delete()
+            os.remove('video.mp4')
+        except Exception as e:
+            await msg.edit_text(f"Хатогӣ ҳангоми зеркашии видео: {e}")
+            if os.path.exists('video.mp4'):
+                os.remove('video.mp4')
+
+    # 2. Зеркашии мусиқа (аудиои пурра)
+    elif query.data == "dl_audio":
+        msg = await query.message.reply_text("Музика скачать шуда истодааст, лутфан мунтазир шавед...")
+        
+        ydl_opts = {
+            'format': 'bestaudio',
+            'outtmpl': 'audio.m4a',
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                duration = info.get('duration', None)
+                title = info.get('title', 'Мусиқии релс')
+
+            with open('audio.m4a', 'rb') as audio_file:
+                await query.message.reply_audio(
+                    audio=audio_file,
+                    title=title,
+                    duration=duration
+                )
+            await msg.delete()
+            os.remove('audio.m4a')
+        except Exception as e:
+            await msg.edit_text(f"Хатогӣ ҳангоми зеркашии мусиқи: {e}")
+            if os.path.exists('audio.m4a'):
+                os.remove('audio.m4a')
+
+    # 3. Гирифтани текст ва описания
+    elif query.data == "get_text":
+        msg = await query.message.reply_text("Матни пост ва хештегҳо гирифта шуда истодаанд...")
 
         ydl_opts = {'extract_flat': True, 'skip_download': True}
         try:
@@ -92,18 +140,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 title = info.get('title', 'Сарлавҳа нест')
                 description = info.get('description', 'Описания ёфт нашуд.')
 
-            text_result = f"📌 **Сарлавҳа:**\n{title}\n\n📝 **Описания ва хештегҳо:**\n{description}"
+            text_result = f"📌 Сарлавҳа:\n{title}\n\n📝 Описания ва хештегҳо:\n{description}"
             
             if len(text_result) > 4096:
                 text_result = text_result[:4093] + "..."
 
             await query.message.reply_text(text_result, parse_mode="Markdown")
+            await msg.delete()
         except Exception as e:
-            await query.message.reply_text(f"Хатогӣ ҳангоми гирифтани текст: {e}")
+            await msg.edit_text(f"Хатогӣ ҳангоми гирифтани текст: {e}")
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_users = len(users_set)
-    print(f"Касе оморро хост. Шумораи корбарон: {total_users}")
     if total_users == 0:
         await update.message.reply_text("То ҳол ягон корбар фармони /start-ро пахш накардааст.")
     else:
@@ -118,7 +166,7 @@ async def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
     
     print("Bot started...")
     
