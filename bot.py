@@ -76,7 +76,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("Лутфан бори дигар ссылкаро партоед ва пас аз он тугмаро пахш кунед.")
         return
 
-    # 1. Зеркашии видео (бо лимити 720p барои мувофиқат ба Render ва Telegram)
     if query.data == "dl_video":
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_video")
         
@@ -108,7 +107,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if os.path.exists('video.mp4'):
                 os.remove('video.mp4')
 
-    # 2. Зеркашии мусиқи
     elif query.data == "dl_audio":
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_audio")
         
@@ -138,7 +136,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if os.path.exists('audio.m4a'):
                 os.remove('audio.m4a')
 
-    # 3. Гирифтани текст ва описания
     elif query.data == "get_text":
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="typing")
 
@@ -184,7 +181,8 @@ async def main():
     
     await app.initialize()
     await app.start()
-    app.updater.start_polling()
+    # Ин ҷо ислоҳ шуд (await илова гардид):
+    await app.updater.start_polling()
     
     stop_event = asyncio.Event()
     await stop_event.wait()
