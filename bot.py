@@ -10,22 +10,9 @@ def load_users():
 users_set = load_users()
 last_urls = {}
 
-from aiohttp import web
 import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-
-async def handle(request):
-    return web.Response(text="Bot is running!")
-
-async def web_server():
-    app = web.Application()
-    app.router.add_get("/", handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -166,10 +153,8 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(f"Шумораи корбарони боти шумо: {total_users} нафар")
 
-async def main():
-    asyncio.create_task(web_server())
-
-    TOKEN = "8795068941:AAHTcjM9nv8atBdkLcCtJdPpndgIZRVidFM"
+def main():
+    TOKEN = "8795068941:AAH8PJQp5eYY0qY9WwDkg0MBb_E-toKvwDg"
     app = Application.builder().token(TOKEN).read_timeout(120).write_timeout(120).connect_timeout(120).pool_timeout(120).build()
         
     app.add_handler(CommandHandler("start", start))
@@ -177,15 +162,20 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
     
-    print("Bot started...")
+    PORT = int(os.environ.get("PORT", 10000))
+    # Дар инҷо бот тавассути Webhook дар Render кор мекунад ва ҳеҷ гоҳ муноқиша намешавад
+    RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
     
-    await app.initialize()
-    await app.start()
-    # Ин ҷо ислоҳ шуд (await илова гардид):
-    await app.updater.start_polling()
-    
-    stop_event = asyncio.Event()
-    await stop_event.wait()
+    if RENDER_EXTERNAL_URL:
+        webhook_url = f"{RENDER_EXTERNAL_URL}/{TOKEN}"
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=TOKEN,
+            webhook_url=webhook_url
+        )
+    else:
+        app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
