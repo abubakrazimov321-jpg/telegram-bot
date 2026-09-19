@@ -36,7 +36,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f.write(user_id + "\n")
             
     print(f"Корбар бо ID-и {user_id} фармони /start-ро пахш кард!")
-    await update.message.reply_text("Салом! Ссылкаи видеои лозимаро видеоро партоед:")
+    await update.message.reply_text("Салом! Ссылкаи видео ё релсро партоед:")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
@@ -73,13 +73,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 1. Зеркашии видео
     if query.data == "dl_video":
-        # Нишон додани статуси "отправляет видео" дар болои чат
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_video")
         
         ydl_opts = {
             'format': 'mp4[height<=720]/best[height<=720]/best',
             'outtmpl': 'video.mp4',
             'extractor_args': {'instagram': {'api_hostname': 'i.instagram.com'}},
+            'usenetrc': False,
+            'quiet': True
         }
 
         try:
@@ -104,20 +105,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 2. Зеркашии мусиқа (аудиои пурра)
     elif query.data == "dl_audio":
-        # Нишон додани статуси "отправляет аудио" дар болои чат
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_audio")
         
         ydl_opts = {
             'format': 'bestaudio',
             'outtmpl': 'audio.m4a',
             'extractor_args': {'instagram': {'api_hostname': 'i.instagram.com'}},
+            'usenetrc': False,
+            'quiet': True
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 duration = info.get('duration', None)
-                title = info.get('title', 'Мусиқии релс')
+                title = info.get('title', 'Мусиқаи релс')
 
             with open('audio.m4a', 'rb') as audio_file:
                 await query.message.reply_audio(
@@ -133,10 +135,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 3. Гирифтани текст ва описания
     elif query.data == "get_text":
-        # Нишон додани статуси "печатает" дар болои чат
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="typing")
 
-        ydl_opts = {'extract_flat': True, 'skip_download': True}
+        ydl_opts = {
+            'extract_flat': True, 
+            'skip_download': True,
+            'quiet': True
+        }
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -174,7 +179,7 @@ async def main():
     
     await app.initialize()
     await app.start()
-    await app.updater.start_polling()
+    app.updater.start_polling()
     
     stop_event = asyncio.Event()
     await stop_event.wait()
