@@ -1,7 +1,6 @@
 import os
 import asyncio
 
-# Функсия барои хондани корбарон аз файл
 def load_users():
     if os.path.exists("users.txt"):
         with open("users.txt", "r") as f:
@@ -35,7 +34,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open("users.txt", "a") as f:
             f.write(user_id + "\n")
             
-    print(f"Корбар бо ID-и {user_id} фармони /start-ро пахш кард!")
     await update.message.reply_text("Салом! Ссылкаи видео ё релсро партоед:")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -47,10 +45,9 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     last_urls[user_id] = url
 
-    # Тугмаҳо барои интихоб
     keyboard = [
         [InlineKeyboardButton("📥 Скачать видео", callback_data="dl_video")],
-        [InlineKeyboardButton("🎵 Скачать музыку", callback_data="dl_audio")],
+        [InlineKeyboardButton("🎵 Скачать мусиқи", callback_data="dl_audio")],
         [InlineKeyboardButton("📄 Получить текст", callback_data="get_text")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -68,10 +65,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = last_urls.get(user_id)
 
     if not url:
-        await query.message.reply_text("Маълумоти ссылка ёфт нашуд. Бори дигар ссылкаро партоед.")
+        try:
+            message_text = query.message.reply_to_message.text if query.message.reply_to_message else None
+            if message_text and message_text.startswith("http"):
+                url = message_text
+        except:
+            pass
+
+    if not url:
+        await query.message.reply_text("Лутфан бори дигар ссылкаро партоед ва пас аз он тугмаро пахш кунед.")
         return
 
-    # 1. Зеркашии видео
+    # 1. Зеркашии видео (бо лимити 720p барои мувофиқат ба Render ва Telegram)
     if query.data == "dl_video":
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_video")
         
@@ -103,7 +108,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if os.path.exists('video.mp4'):
                 os.remove('video.mp4')
 
-    # 2. Зеркашии мусиқа (аудиои пурра)
+    # 2. Зеркашии мусиқи
     elif query.data == "dl_audio":
         await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_audio")
         
@@ -119,7 +124,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 duration = info.get('duration', None)
-                title = info.get('title', 'Мусиқаи релс')
+                title = info.get('title', 'Мусиқии релс')
 
             with open('audio.m4a', 'rb') as audio_file:
                 await query.message.reply_audio(
