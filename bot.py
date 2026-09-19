@@ -36,7 +36,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f.write(user_id + "\n")
             
     print(f"Корбар бо ID-и {user_id} фармони /start-ро пахш кард!")
-    await update.message.reply_text("Салом! Ссылкаи видеои лозимаро партоед:")
+    await update.message.reply_text("Салом! Ссылкаи видеои лозимаро видеоро партоед:")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
@@ -73,11 +73,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 1. Зеркашии видео
     if query.data == "dl_video":
-        msg = await query.message.reply_text("Видео скачать шуда истодааст, лутфан мунтазир шавед...")
+        # Нишон додани статуси "отправляет видео" дар болои чат
+        await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_video")
         
         ydl_opts = {
             'format': 'mp4[height<=720]/best[height<=720]/best',
             'outtmpl': 'video.mp4',
+            'extractor_args': {'instagram': {'api_hostname': 'i.instagram.com'}},
         }
 
         try:
@@ -94,20 +96,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     width=width,
                     height=height
                 )
-            await msg.delete()
             os.remove('video.mp4')
         except Exception as e:
-            await msg.edit_text(f"Хатогӣ ҳангоми зеркашии видео: {e}")
+            await query.message.reply_text(f"Хатогӣ ҳангоми зеркашии видео: {e}")
             if os.path.exists('video.mp4'):
                 os.remove('video.mp4')
 
     # 2. Зеркашии мусиқа (аудиои пурра)
     elif query.data == "dl_audio":
-        msg = await query.message.reply_text("Музика скачать шуда истодааст, лутфан мунтазир шавед...")
+        # Нишон додани статуси "отправляет аудио" дар болои чат
+        await context.bot.send_chat_action(chat_id=query.message.chat_id, action="upload_audio")
         
         ydl_opts = {
             'format': 'bestaudio',
             'outtmpl': 'audio.m4a',
+            'extractor_args': {'instagram': {'api_hostname': 'i.instagram.com'}},
         }
 
         try:
@@ -122,16 +125,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     title=title,
                     duration=duration
                 )
-            await msg.delete()
             os.remove('audio.m4a')
         except Exception as e:
-            await msg.edit_text(f"Хатогӣ ҳангоми зеркашии мусиқи: {e}")
+            await query.message.reply_text(f"Хатогӣ ҳангоми зеркашии мусиқи: {e}")
             if os.path.exists('audio.m4a'):
                 os.remove('audio.m4a')
 
     # 3. Гирифтани текст ва описания
     elif query.data == "get_text":
-        msg = await query.message.reply_text("Матни пост ва хештегҳо гирифта шуда истодаанд...")
+        # Нишон додани статуси "печатает" дар болои чат
+        await context.bot.send_chat_action(chat_id=query.message.chat_id, action="typing")
 
         ydl_opts = {'extract_flat': True, 'skip_download': True}
         try:
@@ -146,9 +149,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text_result = text_result[:4093] + "..."
 
             await query.message.reply_text(text_result, parse_mode="Markdown")
-            await msg.delete()
         except Exception as e:
-            await msg.edit_text(f"Хатогӣ ҳангоми гирифтани текст: {e}")
+            await query.message.reply_text(f"Хатогӣ ҳангоми гирифтани текст: {e}")
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_users = len(users_set)
