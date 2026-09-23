@@ -100,6 +100,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'caption': description
         }
 
+        # Тугмаҳо дар зери видео (бе матни иловагӣ дар caption)
         keyboard = [
             [InlineKeyboardButton("🎵 Скачать мусиқи", callback_data=f"a_{url_id}")]
         ]
@@ -115,7 +116,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     duration=duration,
                     width=width,
                     height=height,
-                    caption=description[:1024] if description else None,  # Ограничение телеграма на длину caption
+                    caption=None,  # Дар таги видео ягон матн намояндагӣ намекунад
                     reply_markup=reply_markup
                 )
             os.remove('video.mp4')
