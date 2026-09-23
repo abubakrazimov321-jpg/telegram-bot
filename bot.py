@@ -3,6 +3,9 @@ import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
+# Канали худи шумо
+CHANNEL_USERNAME = "@trenddmarket_tj"
+
 def load_users():
     if os.path.exists("users.txt"):
         with open("users.txt", "r") as f:
@@ -11,9 +14,17 @@ def load_users():
 
 users_set = load_users()
 
-# Луғاتی муваққатӣ барои нигоҳ доштани ссылкаҳо бо рақамҳои кӯтоҳ (барои роҳ надодан ба хатогии тугма)
 url_storage = {}
 url_counter = 0
+
+async def check_subscription(user_id, context):
+    try:
+        member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        if member.status in ['member', 'administrator', 'creator']:
+            return True
+    except Exception:
+        pass
+    return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -22,16 +33,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open("users.txt", "a") as f:
             f.write(user_id + "\n")
             
-    await update.message.reply_text("Салом! Ссылкаи лозимаро партоед:")
+    is_subscribed = await check_subscription(update.effective_user.id, context)
+    if not is_subscribed:
+        keyboard = [
+            [InlineKeyboardButton("ПЕРЕЙТИ В КАНАЛ", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")],
+            [InlineKeyboardButton("🔄 Проверить подписку", callback_data="check_sub")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"🚀 Барои истифодаи бот, лутфан аввал ба канали мо обуна шавед: https://t.me/{CHANNEL_USERNAME.replace('@', '')}",
+            reply_markup=reply_markup
+        )
+        return
+
+    await update.message.reply_text("Салом! Ссылкаи видео, релс ё сторисро партоед:")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global url_counter
+    user_id = update.effective_user.id
+
+    is_subscribed = await check_subscription(user_id, context)
+    if not is_subscribed:
+        keyboard = [
+            [InlineKeyboardButton("ПЕРЕЙТИ В КАНАЛ", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")],
+            [InlineKeyboardButton("🔄 Проверить подписку", callback_data="check_sub")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"🚀 Барои истифодаи бот, лутфан аввал ба канали мо обуна шавед: https://t.me/{CHANNEL_USERNAME.replace('@', '')}",
+            reply_markup=reply_markup
+        )
+        return
+
     url = update.message.text
     if not url.startswith("http"):
         await update.message.reply_text("Лутфан ссылкаи дуруст партоед.")
         return
 
-    # Танҳо дар болои чат статус нишон медиҳем (бе фиристодани паёми матнии иловагӣ)
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_video")
     
     ydl_opts = {
@@ -54,7 +92,6 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             width = info.get('width', None)
             height = info.get('height', None)
         
-        # Барои кӯтоҳ кардани ссылка ва пешгирии хатогии Button_data_invalid
         url_counter += 1
         url_id = str(url_counter)
         url_storage[url_id] = url
@@ -88,6 +125,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     data = query.data
+
+    if data == "check_sub":
+        is_subscribed = await check_subscription(query.from_user.id, context)
+        if is_subscribed:
+            await query.message.edit_text("✅ Ташаккур барои обуна шудан! Акнун ссылкаи видеоро партоед:")
+        else:
+            await query.answer("❌ Шумо ҳанӯз ба канал обуна нашудаед!", show_alert=True)
+        return
+
     if "_" not in data:
         await query.message.reply_text("Хатогӣ рух дод.")
         return
@@ -131,7 +177,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await message.reply_text("Мусиқии ин медиа ёфт нашуд.")
 
-            # Тоза кардани тугмаи мусиқӣ
             new_keyboard = []
             for row in inline_keyboard:
                 new_row = [btn for btn in row if not btn.callback_data.startswith("a_")]
@@ -167,7 +212,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await message.reply_text(text_result, parse_mode="Markdown")
 
-            # Тоза кардани тугмаи текст
             new_keyboard = []
             for row in inline_keyboard:
                 new_row = [btn for btn in row if not btn.callback_data.startswith("t_")]
