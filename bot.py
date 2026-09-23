@@ -177,7 +177,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Шумораи корбарони боти шумо: {total_users} нафар")
 
 def main():
-    TOKEN = "8795068941:AAEBH5QJAs_lcrbKOqbqm5MNUr6f9CKV5vk"
+    TOKEN = "8795068941:AAG908tyqDVKGBC7bSY9GlR-_wqp7OYc_cc"
     app = Application.builder().token(TOKEN).read_timeout(120).write_timeout(120).connect_timeout(120).pool_timeout(120).build()
         
     app.add_handler(CommandHandler("start", start))
