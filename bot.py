@@ -11,6 +11,10 @@ def load_users():
 
 users_set = load_users()
 
+# Луғاتی муваққатӣ барои нигоҳ доштани ссылкаҳо бо рақамҳои кӯтоҳ (барои роҳ надодан ба хатогии тугма)
+url_storage = {}
+url_counter = 0
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in users_set:
@@ -18,18 +22,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open("users.txt", "a") as f:
             f.write(user_id + "\n")
             
-    await update.message.reply_text("Салом! Ссылкаро аз чойи лозима партоед:")
+    await update.message.reply_text("Салом! Ссылкаи лозимаро партоед:")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global url_counter
     url = update.message.text
     if not url.startswith("http"):
         await update.message.reply_text("Лутфан ссылкаи дуруст партоед.")
         return
 
-    await update.message.reply_text("⏳ Зеркашӣ истодааст...")
+    # Танҳо дар болои чат статус нишон медиҳем (бе фиристодани паёми матнии иловагӣ)
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_video")
     
-    # Танзимоти васеъшуда барои дастгирии Reels, Stories ва Highlights (Актуальное)
     ydl_opts = {
         'format': 'mp4[height<=720]/best[height<=720]/best',
         'outtmpl': 'video.mp4',
@@ -38,8 +42,6 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'api_hostname': 'i.instagram.com',
             }
         },
-        # Агар шумо cookie дошта бошед, метавонед дар папкаи бот файли cookies.txt монда ин сатрро фаъол кунед:
-        # 'cookiefile': 'cookies.txt',
         'usenetrc': False,
         'quiet': True,
         'no_warnings': True
@@ -52,13 +54,17 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             width = info.get('width', None)
             height = info.get('height', None)
         
+        # Барои кӯтоҳ кардани ссылка ва пешгирии хатогии Button_data_invalid
+        url_counter += 1
+        url_id = str(url_counter)
+        url_storage[url_id] = url
+
         keyboard = [
-            [InlineKeyboardButton("🎵 Скачать мусиқи", callback_data=f"a_{url}")],
-            [InlineKeyboardButton("📄 Получить текст", callback_data=f"t_{url}")]
+            [InlineKeyboardButton("🎵 Скачать мусиқи", callback_data=f"a_{url_id}")],
+            [InlineKeyboardButton("📄 Получить текст", callback_data=f"t_{url_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Санҷиш барои он ки оё файл зеркашӣ шуд ё не
         if os.path.exists('video.mp4'):
             with open('video.mp4', 'rb') as video_file:
                 await update.message.reply_video(
@@ -66,7 +72,6 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     duration=duration,
                     width=width,
                     height=height,
-                    caption="Видео, сторис ё актуальное бомуваффақият зеркашӣ шуд 👇",
                     reply_markup=reply_markup
                 )
             os.remove('video.mp4')
@@ -74,7 +79,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Медиафайл ёфт нашуд ё ссылка хато аст.")
             
     except Exception as e:
-        await update.message.reply_text(f"Хатогӣ ҳангоми зеркашӣ (барои сторис шояд ворид шудан лозим шавад): {e}")
+        await update.message.reply_text(f"Хатогӣ ҳангоми зеркашӣ: {e}")
         if os.path.exists('video.mp4'):
             os.remove('video.mp4')
 
@@ -87,7 +92,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("Хатогӣ рух дод.")
         return
 
-    action, url = data.split("_", 1)
+    action, url_id = data.split("_", 1)
+    url = url_storage.get(url_id)
+
+    if not url:
+        await query.message.reply_text("Маълумоти ин ссылка кӯҳна шудааст, лутфан ссылкаро аз нав партоед.")
+        return
+
     message = query.message
     markup = message.reply_markup
     inline_keyboard = markup.inline_keyboard if markup else []
@@ -149,7 +160,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 title = info.get('title', 'Сарлавҳа нест')
                 description = info.get('description', 'Описания ёфт нашуд.')
 
-            text_result = f"📌 Сарлавҳа:\n{title}\n\n📝 Описания ва хештегҳо:\n{description}"
+            text_result = f"📌 Сарлавҳа:\n{title}\n\n📝 Описания:\n{description}"
             
             if len(text_result) > 4096:
                 text_result = text_result[:4093] + "..."
