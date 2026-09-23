@@ -46,7 +46,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text("Салом! Ссылкаи видео ё релсро партоед:")
+    await update.message.reply_text("Ассалому алейкум !")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global url_counter
@@ -91,14 +91,21 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             duration = info.get('duration', None)
             width = info.get('width', None)
             height = info.get('height', None)
+            description = info.get('description', '') or info.get('title', '')
         
         url_counter += 1
         url_id = str(url_counter)
-        url_storage[url_id] = url
+        url_storage[url_id] = {
+            'url': url,
+            'caption': description
+        }
 
         keyboard = [
             [InlineKeyboardButton("🎵 Скачать мусиқи", callback_data=f"a_{url_id}")]
         ]
+        if description:
+            keyboard.append([InlineKeyboardButton("📄 Получить текст", callback_data=f"t_{url_id}")])
+
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if os.path.exists('video.mp4'):
@@ -108,6 +115,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     duration=duration,
                     width=width,
                     height=height,
+                    caption=description[:1024] if description else None,  # Ограничение телеграма на длину caption
                     reply_markup=reply_markup
                 )
             os.remove('video.mp4')
@@ -137,15 +145,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     action, url_id = data.split("_", 1)
-    url = url_storage.get(url_id)
+    stored_data = url_storage.get(url_id)
 
-    if not url:
+    if not stored_data:
         await query.message.reply_text("Маълумоти ин ссылка кӯҳна шудааст, лутфан ссылкаро аз нав партоед.")
         return
 
+    url = stored_data['url']
+    caption_text = stored_data['caption']
     message = query.message
-    markup = message.reply_markup
-    inline_keyboard = markup.inline_keyboard if markup else []
+
+    if action == "t":
+        if caption_text:
+            await message.reply_text(f"📄 **Матни пост:**\n\n{caption_text}", parse_mode="Markdown")
+        else:
+            await query.answer("Матн ё описание мавҷуд нест.", show_alert=True)
+        return
 
     if action == "a":
         await context.bot.send_chat_action(chat_id=message.chat_id, action="upload_audio")
@@ -174,8 +189,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 os.remove('audio.m4a')
             else:
                 await message.reply_text("Мусиқии ин медиа ёфт нашуд.")
-
-            await message.edit_reply_markup(reply_markup=None)
 
         except Exception as e:
             await message.reply_text(f"Хатогӣ ҳангоми зеркашии мусиқи: {e}")
