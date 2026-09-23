@@ -3,7 +3,7 @@ import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# Канали худи шумо
+# Фақат ва фақат канали худи шумо
 CHANNEL_USERNAME = "@trenddmarket_tj"
 
 def load_users():
@@ -36,8 +36,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_subscribed = await check_subscription(update.effective_user.id, context)
     if not is_subscribed:
         keyboard = [
-            [InlineKeyboardButton("ПЕРЕЙТИ В КАНАЛ", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")],
-            [InlineKeyboardButton("🔄 Проверить подписку", callback_data="check_sub")]
+            [InlineKeyboardButton("Обуна шудан ба канал", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")],
+            [InlineKeyboardButton("🔄 Санҷиши обуна", callback_data="check_sub")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
@@ -46,7 +46,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text("Салом! Ссылкаи видео, релс ё сторисро партоед:")
+    await update.message.reply_text("Салом! Ссылкаи видео ё релсро партоед:")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global url_counter
@@ -55,8 +55,8 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_subscribed = await check_subscription(user_id, context)
     if not is_subscribed:
         keyboard = [
-            [InlineKeyboardButton("ПЕРЕЙТИ В КАНАЛ", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")],
-            [InlineKeyboardButton("🔄 Проверить подписку", callback_data="check_sub")]
+            [InlineKeyboardButton("Обуна шудан ба канал", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")],
+            [InlineKeyboardButton("🔄 Санҷиши обуна", callback_data="check_sub")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
@@ -97,8 +97,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         url_storage[url_id] = url
 
         keyboard = [
-            [InlineKeyboardButton("🎵 Скачать мусиқи", callback_data=f"a_{url_id}")],
-            [InlineKeyboardButton("📄 Получить текст", callback_data=f"t_{url_id}")]
+            [InlineKeyboardButton("🎵 Скачать мусиқи", callback_data=f"a_{url_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -135,7 +134,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if "_" not in data:
-        await query.message.reply_text("Хатогӣ рух дод.")
         return
 
     action, url_id = data.split("_", 1)
@@ -177,66 +175,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await message.reply_text("Мусиқии ин медиа ёфт нашуд.")
 
-            new_keyboard = []
-            for row in inline_keyboard:
-                new_row = [btn for btn in row if not btn.callback_data.startswith("a_")]
-                if new_row:
-                    new_keyboard.append(new_row)
-
-            new_markup = InlineKeyboardMarkup(new_keyboard) if new_keyboard else None
-            await message.edit_reply_markup(reply_markup=new_markup)
+            await message.edit_reply_markup(reply_markup=None)
 
         except Exception as e:
             await message.reply_text(f"Хатогӣ ҳангоми зеркашии мусиқи: {e}")
             if os.path.exists('audio.m4a'):
                 os.remove('audio.m4a')
 
-    elif action == "t":
-        await context.bot.send_chat_action(chat_id=message.chat_id, action="typing")
-
-        ydl_opts = {
-            'extract_flat': True, 
-            'skip_download': True,
-            'quiet': True
-        }
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                title = info.get('title', 'Сарлавҳа нест')
-                description = info.get('description', 'Описания ёфт нашуд.')
-
-            text_result = f"📌 Сарлавҳа:\n{title}\n\n📝 Описания:\n{description}"
-            
-            if len(text_result) > 4096:
-                text_result = text_result[:4093] + "..."
-
-            await message.reply_text(text_result, parse_mode="Markdown")
-
-            new_keyboard = []
-            for row in inline_keyboard:
-                new_row = [btn for btn in row if not btn.callback_data.startswith("t_")]
-                if new_row:
-                    new_keyboard.append(new_row)
-
-            new_markup = InlineKeyboardMarkup(new_keyboard) if new_keyboard else None
-            await message.edit_reply_markup(reply_markup=new_markup)
-
-        except Exception as e:
-            await message.reply_text(f"Хатогӣ ҳангоми гирифтани текст: {e}")
-
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    total_users = len(users_set)
-    if total_users == 0:
-        await update.message.reply_text("То ҳол ягон корбар фармони /start-ро пахш накардааст.")
-    else:
-        await update.message.reply_text(f"Шумораи корбарони боти шумо: {total_users} нафар")
-
 def main():
     TOKEN = "8795068941:AAG908tyqDVKGBC7bSY9GlR-_wqp7OYc_cc"
     app = Application.builder().token(TOKEN).read_timeout(120).write_timeout(120).connect_timeout(120).pool_timeout(120).build()
         
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
     
