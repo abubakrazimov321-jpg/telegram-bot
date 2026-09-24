@@ -265,7 +265,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
     
-    app.job_queue.run_once(lambda context: set_bot_commands(app), 1)
+    # app.job_queue.run_once(lambda context: set_bot_commands(app), 1)
 
     PORT = int(os.environ.get("PORT", 10000))
     RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
